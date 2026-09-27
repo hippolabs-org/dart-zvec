@@ -107,6 +107,30 @@ zvec_error_code_t zvec_collection_optimize(
   ffi.Pointer<zvec_collection_t> collection,
 ) => zvec_error_code_t.fromValue(_zvec_collection_optimize(collection));
 
+@ffi.Native<ffi.Pointer<zvec_collection_options_t> Function()>()
+external ffi.Pointer<zvec_collection_options_t>
+zvec_collection_options_create();
+
+@ffi.Native<ffi.Void Function(ffi.Pointer<zvec_collection_options_t>)>()
+external void zvec_collection_options_destroy(
+  ffi.Pointer<zvec_collection_options_t> options,
+);
+
+@ffi.Native<
+  ffi.UnsignedInt Function(ffi.Pointer<zvec_collection_options_t>, ffi.Bool)
+>(symbol: 'zvec_collection_options_set_read_only')
+external int _zvec_collection_options_set_read_only(
+  ffi.Pointer<zvec_collection_options_t> options,
+  bool read_only,
+);
+
+zvec_error_code_t zvec_collection_options_set_read_only(
+  ffi.Pointer<zvec_collection_options_t> options,
+  bool read_only,
+) => zvec_error_code_t.fromValue(
+  _zvec_collection_options_set_read_only(options, read_only),
+);
+
 @ffi.Native<
   ffi.UnsignedInt Function(
     ffi.Pointer<zvec_collection_t>,

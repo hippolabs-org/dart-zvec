@@ -26,6 +26,9 @@ functions:
     - zvec_collection_schema_add_field
     - zvec_collection_create_and_open
     - zvec_collection_open
+    - zvec_collection_options_create
+    - zvec_collection_options_destroy
+    - zvec_collection_options_set_read_only
     - zvec_collection_close
     - zvec_collection_insert
     - zvec_collection_query
