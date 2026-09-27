@@ -150,6 +150,7 @@ final class ZvecCollection {
     String path, {
     required int dimensions,
     String fieldName = 'embedding',
+    bool readOnly = false,
   }) {
     if (dimensions < 1 || fieldName.isEmpty) {
       throw ArgumentError('Invalid vector field or dimension.');
@@ -157,13 +158,28 @@ final class ZvecCollection {
     Zvec.initialize();
     final pathPtr = path.toNativeUtf8();
     final out = calloc<ffi.Pointer<native.zvec_collection_t>>();
+    final options = readOnly
+        ? native.zvec_collection_options_create()
+        : ffi.nullptr;
     try {
+      if (readOnly) {
+        if (options == ffi.nullptr) {
+          throw StateError('Zvec could not allocate collection options.');
+        }
+        _check(
+          'set read-only mode',
+          native.zvec_collection_options_set_read_only(options, true),
+        );
+      }
       _check(
         'open collection',
-        native.zvec_collection_open(pathPtr.cast(), ffi.nullptr, out),
+        native.zvec_collection_open(pathPtr.cast(), options, out),
       );
       return ZvecCollection._(out.value, dimensions, fieldName);
     } finally {
+      if (options != ffi.nullptr) {
+        native.zvec_collection_options_destroy(options);
+      }
       calloc.free(pathPtr);
       calloc.free(out);
     }

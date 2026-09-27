@@ -1,6 +1,6 @@
 name: dart_zvec
 description: Pure Dart native bindings for Zvec vector collections and similarity search.
-version: 0.1.0
+version: 0.1.1
 publish_to: https://pub.hippolabs.org
 repository: https://github.com/hippolabs-org/dart-zvec/tree/main/packages/dart_zvec
 
