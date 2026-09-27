@@ -43,7 +43,7 @@ void main(List<String> args) async {
       ),
       (OS.windows, Architecture.x64) => (
         'zvec-sdk-windows-amd64.zip',
-        'libzvec_c_api.dll',
+        'zvec_c_api.dll',
       ),
       _ => throw UnsupportedError(
         'Zvec $_version has no Dart native asset for '
