@@ -22,6 +22,7 @@ jobs:
     environment: dart-packages
     env:
       PUB_REPOSITORY_URL: https://pub.hippolabs.org
+      PUB_TOKEN: ${{ secrets.PUB_CREDENTIALS }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -36,8 +37,6 @@ jobs:
         working-directory: packages/dart_zvec
       - name: Configure registry token
         if: ${{ !inputs.dry_run }}
-        env:
-          PUB_TOKEN: ${{ secrets.PUB_CREDENTIALS }}
         shell: bash
         run: |
           set -euo pipefail
