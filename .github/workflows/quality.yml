@@ -1,0 +1,26 @@
+name: Validate Dart Zvec
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-15-arm64, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - run: dart pub get
+      - run: dart run melos run ci
+      - if: matrix.os == 'ubuntu-latest'
+        run: dart pub publish --dry-run
+        working-directory: packages/dart_zvec

@@ -1,0 +1,25 @@
+name: dart_zvec_workspace
+description: Pure Dart bindings and examples for the embedded Zvec engine.
+publish_to: none
+
+environment:
+  sdk: ">=3.13.0 <4.0.0"
+
+workspace:
+  - packages/dart_zvec
+  - example/dart_zvec_example
+
+dev_dependencies:
+  lints: ^6.0.0
+  melos: ^8.9.0
+
+dependency_overrides:
+  cli_util: ^0.5.1
+
+melos:
+  scripts:
+    format:check: dart format --output=none --set-exit-if-changed packages example
+    analyze: dart analyze --fatal-infos
+    test: dart run melos exec --fail-fast --dir-exists=test -- dart test
+    ci:
+      run: dart format --output=none --set-exit-if-changed packages example && dart analyze --fatal-infos && dart run melos exec --fail-fast --dir-exists=test -- dart test

@@ -1,0 +1,12 @@
+name: dart_zvec_example
+description: Example CLI for the pure Dart Zvec package.
+publish_to: none
+
+environment:
+  sdk: ">=3.13.0 <4.0.0"
+
+resolution: workspace
+
+dependencies:
+  dart_zvec:
+    path: ../../packages/dart_zvec
