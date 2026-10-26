@@ -1,3 +1,10 @@
+## Unreleased
+
+- Add Euclidean and inner-product metrics, explicit scalar schemas, typed scalar
+  values, upsert, fetch, deletion, flush and filtered/exact search.
+- Validate persisted vector configuration on open and load scalar schemas.
+- Regenerate bindings for storage operations and ownership-safe query parameters.
+
 ## 0.1.1
 
 - Add read-only collection opens so independent readers can share a persisted

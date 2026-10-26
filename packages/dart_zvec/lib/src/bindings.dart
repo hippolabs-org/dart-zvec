@@ -45,6 +45,129 @@ zvec_error_code_t zvec_collection_create_and_open(
 @ffi.Native<
   ffi.UnsignedInt Function(
     ffi.Pointer<zvec_collection_t>,
+    ffi.Pointer<ffi.Pointer<ffi.Char>>,
+    ffi.Size,
+    ffi.Pointer<ffi.Size>,
+    ffi.Pointer<ffi.Size>,
+  )
+>(symbol: 'zvec_collection_delete')
+external int _zvec_collection_delete(
+  ffi.Pointer<zvec_collection_t> collection,
+  ffi.Pointer<ffi.Pointer<ffi.Char>> pks,
+  int pk_count,
+  ffi.Pointer<ffi.Size> success_count,
+  ffi.Pointer<ffi.Size> error_count,
+);
+
+zvec_error_code_t zvec_collection_delete(
+  ffi.Pointer<zvec_collection_t> collection,
+  ffi.Pointer<ffi.Pointer<ffi.Char>> pks,
+  int pk_count,
+  ffi.Pointer<ffi.Size> success_count,
+  ffi.Pointer<ffi.Size> error_count,
+) => zvec_error_code_t.fromValue(
+  _zvec_collection_delete(
+    collection,
+    pks,
+    pk_count,
+    success_count,
+    error_count,
+  ),
+);
+
+@ffi.Native<
+  ffi.UnsignedInt Function(
+    ffi.Pointer<zvec_collection_t>,
+    ffi.Pointer<ffi.Char>,
+  )
+>(symbol: 'zvec_collection_delete_by_filter')
+external int _zvec_collection_delete_by_filter(
+  ffi.Pointer<zvec_collection_t> collection,
+  ffi.Pointer<ffi.Char> filter,
+);
+
+zvec_error_code_t zvec_collection_delete_by_filter(
+  ffi.Pointer<zvec_collection_t> collection,
+  ffi.Pointer<ffi.Char> filter,
+) => zvec_error_code_t.fromValue(
+  _zvec_collection_delete_by_filter(collection, filter),
+);
+
+@ffi.Native<
+  ffi.UnsignedInt Function(
+    ffi.Pointer<zvec_collection_t>,
+    ffi.Pointer<ffi.Pointer<ffi.Char>>,
+    ffi.Size,
+    ffi.Pointer<ffi.Pointer<ffi.Char>>,
+    ffi.Size,
+    ffi.Bool,
+    ffi.Pointer<ffi.Pointer<ffi.Pointer<zvec_doc_t>>>,
+    ffi.Pointer<ffi.Size>,
+  )
+>(symbol: 'zvec_collection_fetch')
+external int _zvec_collection_fetch(
+  ffi.Pointer<zvec_collection_t> collection,
+  ffi.Pointer<ffi.Pointer<ffi.Char>> primary_keys,
+  int count,
+  ffi.Pointer<ffi.Pointer<ffi.Char>> output_fields,
+  int output_field_count,
+  bool include_vector,
+  ffi.Pointer<ffi.Pointer<ffi.Pointer<zvec_doc_t>>> documents,
+  ffi.Pointer<ffi.Size> found_count,
+);
+
+zvec_error_code_t zvec_collection_fetch(
+  ffi.Pointer<zvec_collection_t> collection,
+  ffi.Pointer<ffi.Pointer<ffi.Char>> primary_keys,
+  int count,
+  ffi.Pointer<ffi.Pointer<ffi.Char>> output_fields,
+  int output_field_count,
+  bool include_vector,
+  ffi.Pointer<ffi.Pointer<ffi.Pointer<zvec_doc_t>>> documents,
+  ffi.Pointer<ffi.Size> found_count,
+) => zvec_error_code_t.fromValue(
+  _zvec_collection_fetch(
+    collection,
+    primary_keys,
+    count,
+    output_fields,
+    output_field_count,
+    include_vector,
+    documents,
+    found_count,
+  ),
+);
+
+@ffi.Native<ffi.UnsignedInt Function(ffi.Pointer<zvec_collection_t>)>(
+  symbol: 'zvec_collection_flush',
+)
+external int _zvec_collection_flush(ffi.Pointer<zvec_collection_t> collection);
+
+zvec_error_code_t zvec_collection_flush(
+  ffi.Pointer<zvec_collection_t> collection,
+) => zvec_error_code_t.fromValue(_zvec_collection_flush(collection));
+
+@ffi.Native<
+  ffi.UnsignedInt Function(
+    ffi.Pointer<zvec_collection_t>,
+    ffi.Pointer<ffi.Pointer<zvec_collection_schema_t>>,
+  )
+>(symbol: 'zvec_collection_get_schema')
+external int _zvec_collection_get_schema(
+  ffi.Pointer<zvec_collection_t> collection,
+  ffi.Pointer<ffi.Pointer<zvec_collection_schema_t>> schema,
+);
+
+zvec_error_code_t zvec_collection_get_schema(
+  ffi.Pointer<zvec_collection_t> collection,
+  ffi.Pointer<ffi.Pointer<zvec_collection_schema_t>> schema,
+) => zvec_error_code_t.fromValue(
+  _zvec_collection_get_schema(collection, schema),
+);
+
+@ffi.Native<
+  ffi.UnsignedInt Function(
+    ffi.Pointer<zvec_collection_t>,
     ffi.Pointer<ffi.Pointer<zvec_doc_t>>,
     ffi.Size,
     ffi.Pointer<ffi.Size>,
@@ -186,6 +309,71 @@ external void zvec_collection_schema_destroy(
 );
 
 @ffi.Native<
+  ffi.Pointer<zvec_field_schema_t> Function(
+    ffi.Pointer<zvec_collection_schema_t>,
+    ffi.Pointer<ffi.Char>,
+  )
+>()
+external ffi.Pointer<zvec_field_schema_t> zvec_collection_schema_get_field(
+  ffi.Pointer<zvec_collection_schema_t> schema,
+  ffi.Pointer<ffi.Char> field_name,
+);
+
+@ffi.Native<
+  ffi.UnsignedInt Function(
+    ffi.Pointer<zvec_collection_schema_t>,
+    ffi.Pointer<ffi.Pointer<ffi.Pointer<zvec_field_schema_t>>>,
+    ffi.Pointer<ffi.Size>,
+  )
+>(symbol: 'zvec_collection_schema_get_forward_fields')
+external int _zvec_collection_schema_get_forward_fields(
+  ffi.Pointer<zvec_collection_schema_t> schema,
+  ffi.Pointer<ffi.Pointer<ffi.Pointer<zvec_field_schema_t>>> fields,
+  ffi.Pointer<ffi.Size> count,
+);
+
+zvec_error_code_t zvec_collection_schema_get_forward_fields(
+  ffi.Pointer<zvec_collection_schema_t> schema,
+  ffi.Pointer<ffi.Pointer<ffi.Pointer<zvec_field_schema_t>>> fields,
+  ffi.Pointer<ffi.Size> count,
+) => zvec_error_code_t.fromValue(
+  _zvec_collection_schema_get_forward_fields(schema, fields, count),
+);
+
+@ffi.Native<
+  ffi.UnsignedInt Function(
+    ffi.Pointer<zvec_collection_t>,
+    ffi.Pointer<ffi.Pointer<zvec_doc_t>>,
+    ffi.Size,
+    ffi.Pointer<ffi.Size>,
+    ffi.Pointer<ffi.Size>,
+  )
+>(symbol: 'zvec_collection_upsert')
+external int _zvec_collection_upsert(
+  ffi.Pointer<zvec_collection_t> collection,
+  ffi.Pointer<ffi.Pointer<zvec_doc_t>> docs,
+  int doc_count,
+  ffi.Pointer<ffi.Size> success_count,
+  ffi.Pointer<ffi.Size> error_count,
+);
+
+zvec_error_code_t zvec_collection_upsert(
+  ffi.Pointer<zvec_collection_t> collection,
+  ffi.Pointer<ffi.Pointer<zvec_doc_t>> docs,
+  int doc_count,
+  ffi.Pointer<ffi.Size> success_count,
+  ffi.Pointer<ffi.Size> error_count,
+) => zvec_error_code_t.fromValue(
+  _zvec_collection_upsert(
+    collection,
+    docs,
+    doc_count,
+    success_count,
+    error_count,
+  ),
+);
+
+@ffi.Native<
   ffi.UnsignedInt Function(
     ffi.Pointer<zvec_doc_t>,
     ffi.Pointer<ffi.Char>,
@@ -218,6 +406,39 @@ external ffi.Pointer<zvec_doc_t> zvec_doc_create();
 @ffi.Native<ffi.Void Function(ffi.Pointer<zvec_doc_t>)>()
 external void zvec_doc_destroy(ffi.Pointer<zvec_doc_t> doc);
 
+@ffi.Native<
+  ffi.UnsignedInt Function(
+    ffi.Pointer<zvec_doc_t>,
+    ffi.Pointer<ffi.Char>,
+    ffi.Uint32,
+    ffi.Pointer<ffi.Pointer<ffi.Void>>,
+    ffi.Pointer<ffi.Size>,
+  )
+>(symbol: 'zvec_doc_get_field_value_pointer')
+external int _zvec_doc_get_field_value_pointer(
+  ffi.Pointer<zvec_doc_t> doc,
+  ffi.Pointer<ffi.Char> field_name,
+  int field_type,
+  ffi.Pointer<ffi.Pointer<ffi.Void>> value,
+  ffi.Pointer<ffi.Size> value_size,
+);
+
+zvec_error_code_t zvec_doc_get_field_value_pointer(
+  ffi.Pointer<zvec_doc_t> doc,
+  ffi.Pointer<ffi.Char> field_name,
+  int field_type,
+  ffi.Pointer<ffi.Pointer<ffi.Void>> value,
+  ffi.Pointer<ffi.Size> value_size,
+) => zvec_error_code_t.fromValue(
+  _zvec_doc_get_field_value_pointer(
+    doc,
+    field_name,
+    field_type,
+    value,
+    value_size,
+  ),
+);
+
 @ffi.Native<ffi.Pointer<ffi.Char> Function(ffi.Pointer<zvec_doc_t>)>()
 external ffi.Pointer<ffi.Char> zvec_doc_get_pk_pointer(
   ffi.Pointer<zvec_doc_t> doc,
@@ -225,6 +446,12 @@ external ffi.Pointer<ffi.Char> zvec_doc_get_pk_pointer(
 
 @ffi.Native<ffi.Float Function(ffi.Pointer<zvec_doc_t>)>()
 external double zvec_doc_get_score(ffi.Pointer<zvec_doc_t> doc);
+
+@ffi.Native<ffi.Bool Function(ffi.Pointer<zvec_doc_t>, ffi.Pointer<ffi.Char>)>()
+external bool zvec_doc_has_field_value(
+  ffi.Pointer<zvec_doc_t> doc,
+  ffi.Pointer<ffi.Char> field_name,
+);
 
 @ffi.Native<ffi.Void Function(ffi.Pointer<zvec_doc_t>, ffi.Pointer<ffi.Char>)>()
 external void zvec_doc_set_pk(
@@ -255,6 +482,28 @@ external ffi.Pointer<zvec_field_schema_t> zvec_field_schema_create(
 
 @ffi.Native<ffi.Void Function(ffi.Pointer<zvec_field_schema_t>)>()
 external void zvec_field_schema_destroy(
+  ffi.Pointer<zvec_field_schema_t> schema,
+);
+
+@ffi.Native<ffi.Uint32 Function(ffi.Pointer<zvec_field_schema_t>)>()
+external int zvec_field_schema_get_data_type(
+  ffi.Pointer<zvec_field_schema_t> schema,
+);
+
+@ffi.Native<ffi.Uint32 Function(ffi.Pointer<zvec_field_schema_t>)>()
+external int zvec_field_schema_get_dimension(
+  ffi.Pointer<zvec_field_schema_t> schema,
+);
+
+@ffi.Native<
+  ffi.Pointer<zvec_index_params_t> Function(ffi.Pointer<zvec_field_schema_t>)
+>()
+external ffi.Pointer<zvec_index_params_t> zvec_field_schema_get_index_params(
+  ffi.Pointer<zvec_field_schema_t> schema,
+);
+
+@ffi.Native<ffi.Pointer<ffi.Char> Function(ffi.Pointer<zvec_field_schema_t>)>()
+external ffi.Pointer<ffi.Char> zvec_field_schema_get_name(
   ffi.Pointer<zvec_field_schema_t> schema,
 );
 
@@ -301,6 +550,11 @@ external void zvec_index_params_destroy(
   ffi.Pointer<zvec_index_params_t> params,
 );
 
+@ffi.Native<ffi.Uint32 Function(ffi.Pointer<zvec_index_params_t>)>()
+external int zvec_index_params_get_metric_type(
+  ffi.Pointer<zvec_index_params_t> params,
+);
+
 @ffi.Native<
   ffi.UnsignedInt Function(ffi.Pointer<zvec_index_params_t>, ffi.Int, ffi.Int)
 >(symbol: 'zvec_index_params_set_hnsw_params')
@@ -316,6 +570,27 @@ zvec_error_code_t zvec_index_params_set_hnsw_params(
   int ef_construction,
 ) => zvec_error_code_t.fromValue(
   _zvec_index_params_set_hnsw_params(params, m, ef_construction),
+);
+
+@ffi.Native<
+  ffi.UnsignedInt Function(ffi.Pointer<zvec_index_params_t>, ffi.Bool, ffi.Bool)
+>(symbol: 'zvec_index_params_set_invert_params')
+external int _zvec_index_params_set_invert_params(
+  ffi.Pointer<zvec_index_params_t> params,
+  bool enable_range_opt,
+  bool enable_wildcard,
+);
+
+zvec_error_code_t zvec_index_params_set_invert_params(
+  ffi.Pointer<zvec_index_params_t> params,
+  bool enable_range_opt,
+  bool enable_wildcard,
+) => zvec_error_code_t.fromValue(
+  _zvec_index_params_set_invert_params(
+    params,
+    enable_range_opt,
+    enable_wildcard,
+  ),
 );
 
 @ffi.Native<
@@ -343,6 +618,26 @@ zvec_error_code_t zvec_initialize(ffi.Pointer<zvec_config_data_t> config) =>
 
 @ffi.Native<ffi.Bool Function()>()
 external bool zvec_is_initialized();
+
+@ffi.Native<
+  ffi.Pointer<zvec_hnsw_query_params_t> Function(
+    ffi.Int,
+    ffi.Float,
+    ffi.Bool,
+    ffi.Bool,
+  )
+>()
+external ffi.Pointer<zvec_hnsw_query_params_t> zvec_query_params_hnsw_create(
+  int ef,
+  double radius,
+  bool is_linear,
+  bool is_using_refiner,
+);
+
+@ffi.Native<ffi.Void Function(ffi.Pointer<zvec_hnsw_query_params_t>)>()
+external void zvec_query_params_hnsw_destroy(
+  ffi.Pointer<zvec_hnsw_query_params_t> params,
+);
 
 @ffi.Native<ffi.UnsignedInt Function()>(symbol: 'zvec_shutdown')
 external int _zvec_shutdown();
@@ -372,6 +667,40 @@ zvec_error_code_t zvec_vector_query_set_field_name(
   ffi.Pointer<ffi.Char> field_name,
 ) => zvec_error_code_t.fromValue(
   _zvec_vector_query_set_field_name(query, field_name),
+);
+
+@ffi.Native<
+  ffi.UnsignedInt Function(
+    ffi.Pointer<zvec_vector_query_t>,
+    ffi.Pointer<ffi.Char>,
+  )
+>(symbol: 'zvec_vector_query_set_filter')
+external int _zvec_vector_query_set_filter(
+  ffi.Pointer<zvec_vector_query_t> query,
+  ffi.Pointer<ffi.Char> filter,
+);
+
+zvec_error_code_t zvec_vector_query_set_filter(
+  ffi.Pointer<zvec_vector_query_t> query,
+  ffi.Pointer<ffi.Char> filter,
+) => zvec_error_code_t.fromValue(_zvec_vector_query_set_filter(query, filter));
+
+@ffi.Native<
+  ffi.UnsignedInt Function(
+    ffi.Pointer<zvec_vector_query_t>,
+    ffi.Pointer<zvec_hnsw_query_params_t>,
+  )
+>(symbol: 'zvec_vector_query_set_hnsw_params')
+external int _zvec_vector_query_set_hnsw_params(
+  ffi.Pointer<zvec_vector_query_t> query,
+  ffi.Pointer<zvec_hnsw_query_params_t> hnsw_params,
+);
+
+zvec_error_code_t zvec_vector_query_set_hnsw_params(
+  ffi.Pointer<zvec_vector_query_t> query,
+  ffi.Pointer<zvec_hnsw_query_params_t> hnsw_params,
+) => zvec_error_code_t.fromValue(
+  _zvec_vector_query_set_hnsw_params(query, hnsw_params),
 );
 
 @ffi.Native<
@@ -451,6 +780,8 @@ enum zvec_error_code_t {
 }
 
 final class zvec_field_schema_t extends ffi.Opaque {}
+
+final class zvec_hnsw_query_params_t extends ffi.Opaque {}
 
 final class zvec_index_params_t extends ffi.Opaque {}
 

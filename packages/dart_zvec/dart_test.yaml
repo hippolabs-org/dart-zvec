@@ -1,0 +1,2 @@
+# Zvec shutdown is process-wide; native test files must not race it.
+concurrency: 1

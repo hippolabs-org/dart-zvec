@@ -1,9 +1,14 @@
+import 'dart:convert';
 import 'dart:ffi' as ffi;
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
 import 'bindings.dart' as native;
+
+part 'models.dart';
+part 'document_codec.dart';
+part 'collection_operations.dart';
 
 /// A failure returned by the Zvec C API.
 final class ZvecException implements Exception {
@@ -34,37 +39,27 @@ abstract final class Zvec {
   }
 }
 
-/// One named embedding and its catalog or document identifier.
-final class ZvecRecord {
-  const ZvecRecord(this.id, this.embedding);
-
-  final String id;
-  final Float32List embedding;
-}
-
-/// A vector search candidate. Scores are returned by Zvec unchanged.
-final class ZvecHit {
-  const ZvecHit(this.id, this.score);
-
-  final String id;
-  final double score;
-}
-
-/// A persistent, single-vector-field collection using cosine HNSW search.
+/// A persistent, single-vector-field collection using configurable HNSW search.
 ///
 /// The collection directory is owned by Zvec. Call [close] when finished.
 final class ZvecCollection {
-  ZvecCollection._(this._handle, this.dimensions, this.fieldName);
+  ZvecCollection._(this._handle, this.dimensions, this.fieldName, this.metric);
 
   ffi.Pointer<native.zvec_collection_t>? _handle;
   final int dimensions;
   final String fieldName;
+  final ZvecMetric metric;
+  Map<String, ZvecScalarType> _fields = {};
+
+  Map<String, ZvecScalarType> get scalarFields => Map.unmodifiable(_fields);
 
   static ZvecCollection create(
     String path, {
     required int dimensions,
     String name = 'vectors',
     String fieldName = 'embedding',
+    ZvecMetric metric = ZvecMetric.cosine,
+    Map<String, ZvecScalarType> scalarFields = const {},
     int m = 16,
     int efConstruction = 200,
   }) {
@@ -75,6 +70,9 @@ final class ZvecCollection {
         efConstruction < 1) {
       throw ArgumentError('Invalid Zvec collection or HNSW parameters.');
     }
+    _validateText(name);
+    _validateText(path);
+    _validateText(fieldName);
     Zvec.initialize();
     final pathPtr = path.toNativeUtf8();
     final namePtr = name.toNativeUtf8();
@@ -105,8 +103,11 @@ final class ZvecCollection {
         }
         try {
           _check(
-            'set cosine metric',
-            native.zvec_index_params_set_metric_type(index, 3),
+            'set vector metric',
+            native.zvec_index_params_set_metric_type(
+              index,
+              metric._nativeValue,
+            ),
           );
           _check(
             'set HNSW parameters',
@@ -126,6 +127,20 @@ final class ZvecCollection {
       } finally {
         native.zvec_field_schema_destroy(field);
       }
+      for (final entry in scalarFields.entries) {
+        if (entry.key == fieldName) {
+          throw ArgumentError('Scalar/vector field name collision.');
+        }
+        final scalar = _scalarSchema(entry.key, entry.value);
+        try {
+          _check(
+            'add scalar field',
+            native.zvec_collection_schema_add_field(schema, scalar),
+          );
+        } finally {
+          native.zvec_field_schema_destroy(scalar);
+        }
+      }
       _check(
         'create collection',
         native.zvec_collection_create_and_open(
@@ -135,7 +150,8 @@ final class ZvecCollection {
           out,
         ),
       );
-      return ZvecCollection._(out.value, dimensions, fieldName);
+      return ZvecCollection._(out.value, dimensions, fieldName, metric)
+        .._fields = Map.of(scalarFields);
     } finally {
       native.zvec_collection_schema_destroy(schema);
       calloc.free(pathPtr);
@@ -151,10 +167,13 @@ final class ZvecCollection {
     required int dimensions,
     String fieldName = 'embedding',
     bool readOnly = false,
+    ZvecMetric metric = ZvecMetric.cosine,
   }) {
     if (dimensions < 1 || fieldName.isEmpty) {
       throw ArgumentError('Invalid vector field or dimension.');
     }
+    _validateText(path);
+    _validateText(fieldName);
     Zvec.initialize();
     final pathPtr = path.toNativeUtf8();
     final out = calloc<ffi.Pointer<native.zvec_collection_t>>();
@@ -175,7 +194,19 @@ final class ZvecCollection {
         'open collection',
         native.zvec_collection_open(pathPtr.cast(), options, out),
       );
-      return ZvecCollection._(out.value, dimensions, fieldName);
+      final collection = ZvecCollection._(
+        out.value,
+        dimensions,
+        fieldName,
+        metric,
+      );
+      try {
+        collection._loadSchema();
+        return collection;
+      } catch (_) {
+        collection.close();
+        rethrow;
+      }
     } finally {
       if (options != ffi.nullptr) {
         native.zvec_collection_options_destroy(options);
@@ -185,9 +216,28 @@ final class ZvecCollection {
     }
   }
 
-  void insert(Iterable<ZvecRecord> records) {
+  void insert(Iterable<ZvecRecord> records) => _write(records, upsert: false);
+
+  void upsert(Iterable<ZvecRecord> records) => _write(records, upsert: true);
+
+  void _write(Iterable<ZvecRecord> records, {required bool upsert}) {
     final input = records.toList(growable: false);
+    _requireOpen();
     if (input.isEmpty) return;
+    for (final record in input) {
+      _validateVector(record.embedding);
+      _validateText(record.id);
+      if (record.id.isEmpty) {
+        throw ArgumentError('Record IDs must not be empty.');
+      }
+      for (final entry in record.fields.entries) {
+        if (_fields[entry.key] != entry.value.type) {
+          throw ArgumentError(
+            'Unknown field or incompatible scalar type: ${entry.key}',
+          );
+        }
+      }
+    }
     final documents = calloc<ffi.Pointer<native.zvec_doc_t>>(input.length);
     final success = calloc<ffi.Size>();
     final errors = calloc<ffi.Size>();
@@ -221,6 +271,9 @@ final class ZvecCollection {
               dimensions * ffi.sizeOf<ffi.Float>(),
             ),
           );
+          for (final entry in record.fields.entries) {
+            _addScalar(document, entry.key, entry.value);
+          }
         } finally {
           calloc.free(id);
           calloc.free(name);
@@ -228,8 +281,10 @@ final class ZvecCollection {
         }
       }
       _check(
-        'insert documents',
-        native.zvec_collection_insert(
+        upsert ? 'upsert documents' : 'insert documents',
+        (upsert
+            ? native.zvec_collection_upsert
+            : native.zvec_collection_insert)(
           _requireOpen(),
           documents,
           input.length,
@@ -239,9 +294,9 @@ final class ZvecCollection {
       );
       if (errors.value != 0 || success.value != input.length) {
         throw ZvecException(
-          'insert documents',
+          upsert ? 'upsert documents' : 'insert documents',
           -1,
-          '${success.value} inserted, ${errors.value} failed.',
+          '${success.value} written, ${errors.value} failed.',
         );
       }
     } finally {
@@ -260,9 +315,17 @@ final class ZvecCollection {
     native.zvec_collection_optimize(_requireOpen()),
   );
 
-  List<ZvecHit> search(Float32List embedding, {int limit = 10}) {
+  List<ZvecHit> search(
+    Float32List embedding, {
+    int limit = 10,
+    String? filter,
+    bool exact = false,
+    int efSearch = 100,
+  }) {
     _validateVector(embedding);
     if (limit < 1) throw RangeError.range(limit, 1, null, 'limit');
+    if (efSearch < 1) throw ArgumentError('efSearch must be positive.');
+    if (filter != null) _validateText(filter);
     final query = native.zvec_vector_query_create();
     if (query == ffi.nullptr) {
       throw StateError('Zvec could not allocate a query.');
@@ -271,7 +334,29 @@ final class ZvecCollection {
     final values = calloc<ffi.Float>(dimensions);
     final results = calloc<ffi.Pointer<ffi.Pointer<native.zvec_doc_t>>>();
     final count = calloc<ffi.Size>();
+    final params = native.zvec_query_params_hnsw_create(
+      efSearch,
+      0,
+      exact,
+      false,
+    );
+    var ownsParams = true;
+    final filterPtr = filter?.toNativeUtf8();
     try {
+      if (params == ffi.nullptr) {
+        throw StateError('Cannot allocate HNSW query parameters.');
+      }
+      _check(
+        'set query parameters',
+        native.zvec_vector_query_set_hnsw_params(query, params),
+      );
+      ownsParams = false; // Successful setter transfers ownership to the query.
+      if (filterPtr != null) {
+        _check(
+          'set query filter',
+          native.zvec_vector_query_set_filter(query, filterPtr.cast()),
+        );
+      }
       for (var i = 0; i < dimensions; i++) {
         values[i] = embedding[i];
       }
@@ -303,6 +388,7 @@ final class ZvecCollection {
                 .cast<Utf8>()
                 .toDartString(),
             native.zvec_doc_get_score(results.value[i]),
+            fields: _readFields(results.value[i]),
           ),
       ];
     } finally {
@@ -310,6 +396,10 @@ final class ZvecCollection {
         native.zvec_docs_free(results.value, count.value);
       }
       native.zvec_vector_query_destroy(query);
+      if (ownsParams && params != ffi.nullptr) {
+        native.zvec_query_params_hnsw_destroy(params);
+      }
+      if (filterPtr != null) calloc.free(filterPtr);
       calloc.free(name);
       calloc.free(values);
       calloc.free(results);

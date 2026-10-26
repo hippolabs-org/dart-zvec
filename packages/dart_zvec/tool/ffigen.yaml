@@ -45,6 +45,26 @@ functions:
     - zvec_vector_query_set_topk
     - zvec_vector_query_set_field_name
     - zvec_vector_query_set_query_vector
+    - zvec_collection_upsert
+    - zvec_collection_fetch
+    - zvec_collection_delete
+    - zvec_collection_delete_by_filter
+    - zvec_collection_flush
+    - zvec_collection_get_schema
+    - zvec_collection_schema_get_forward_fields
+    - zvec_collection_schema_get_field
+    - zvec_field_schema_get_name
+    - zvec_field_schema_get_data_type
+    - zvec_field_schema_get_dimension
+    - zvec_field_schema_get_index_params
+    - zvec_index_params_get_metric_type
+    - zvec_doc_get_field_value_pointer
+    - zvec_doc_has_field_value
+    - zvec_vector_query_set_filter
+    - zvec_query_params_hnsw_create
+    - zvec_query_params_hnsw_destroy
+    - zvec_vector_query_set_hnsw_params
+    - zvec_index_params_set_invert_params
 exclude-all-by-default: true
 sort: true
 comments: false
