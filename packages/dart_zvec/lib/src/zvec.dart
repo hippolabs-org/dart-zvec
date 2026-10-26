@@ -29,7 +29,14 @@ abstract final class Zvec {
 
   static void initialize() {
     if (native.zvec_is_initialized()) return;
-    _check('initialize', native.zvec_initialize(ffi.nullptr));
+    final result = native.zvec_initialize(ffi.nullptr);
+    // Another isolate may initialize the shared library after the first check.
+    // All callers use the same default configuration; the initialized state is
+    // authoritative. Shutdown still requires coordination by the application.
+    if (result != native.zvec_error_code_t.ZVEC_OK &&
+        !native.zvec_is_initialized()) {
+      _check('initialize', result);
+    }
   }
 
   /// Call after closing every collection.
