@@ -13,8 +13,10 @@ dev_dependencies:
   lints: ^6.0.0
   melos: ^8.9.0
 
+# ffigen 20 uses only cli_logging but constrains cli_util to 0.4.x.
+# Melos and the current test/coverage runner require the compatible 0.6 API.
 dependency_overrides:
-  cli_util: ^0.5.1
+  cli_util: ^0.6.0
 
 melos:
   scripts:
