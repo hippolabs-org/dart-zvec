@@ -9,17 +9,34 @@ void main() {
     final collection = ZvecCollection.create(
       '${directory.path}/demo',
       dimensions: 3,
+      textIndexes: {'content': ZvecTextIndex()},
     );
     try {
       collection.insert([
-        ZvecRecord('port', Float32List.fromList([1, 0, 0])),
-        ZvecRecord('sonography', Float32List.fromList([0, 1, 0])),
+        ZvecRecord(
+          'port',
+          Float32List.fromList([1, 0, 0]),
+          fields: {'content': ZvecString('A port for vascular access.')},
+        ),
+        ZvecRecord(
+          'sonography',
+          Float32List.fromList([0, 1, 0]),
+          fields: {
+            'content': ZvecString('Ultrasound imaging with sonography.'),
+          },
+        ),
       ]);
       collection.optimize();
       for (final hit in collection.search(
         Float32List.fromList([0.9, 0.1, 0]),
       )) {
         stdout.writeln('${hit.id}: ${hit.score}');
+      }
+      for (final hit in collection.searchText(
+        'content',
+        const ZvecTextMatch('ultrasound imaging'),
+      )) {
+        stdout.writeln('BM25 ${hit.id}: ${hit.score}');
       }
     } finally {
       collection.close();

@@ -7,6 +7,8 @@ import 'package:ffi/ffi.dart';
 import 'bindings.dart' as native;
 
 part 'models.dart';
+part 'text_models.dart';
+part 'text_search.dart';
 part 'document_codec.dart';
 part 'collection_operations.dart';
 
@@ -46,31 +48,39 @@ abstract final class Zvec {
   }
 }
 
-/// A persistent, single-vector-field collection using configurable HNSW search.
+/// A persistent collection with optional HNSW vectors and BM25 text indexes.
 ///
 /// The collection directory is owned by Zvec. Call [close] when finished.
 final class ZvecCollection {
   ZvecCollection._(this._handle, this.dimensions, this.fieldName, this.metric);
 
   ffi.Pointer<native.zvec_collection_t>? _handle;
-  final int dimensions;
+
+  /// Null for collections without a vector field.
+  final int? dimensions;
   final String fieldName;
   final ZvecMetric metric;
   Map<String, ZvecScalarType> _fields = {};
+  Map<String, ZvecTextIndex> _textIndexes = {};
+
+  /// Persisted text-index configurations, including tokenizer settings.
+  Map<String, ZvecTextIndex> get textIndexes => Map.unmodifiable(_textIndexes);
+  bool get hasVectorField => dimensions != null;
 
   Map<String, ZvecScalarType> get scalarFields => Map.unmodifiable(_fields);
 
   static ZvecCollection create(
     String path, {
-    required int dimensions,
+    int? dimensions,
     String name = 'vectors',
     String fieldName = 'embedding',
     ZvecMetric metric = ZvecMetric.cosine,
     Map<String, ZvecScalarType> scalarFields = const {},
+    Map<String, ZvecTextIndex> textIndexes = const {},
     int m = 16,
     int efConstruction = 200,
   }) {
-    if (dimensions < 1 ||
+    if ((dimensions != null && (dimensions < 1 || dimensions > 0xffffffff)) ||
         name.isEmpty ||
         fieldName.isEmpty ||
         m < 2 ||
@@ -79,7 +89,21 @@ final class ZvecCollection {
     }
     _validateText(name);
     _validateText(path);
-    _validateText(fieldName);
+    _validateFieldName(fieldName);
+    if (dimensions == null && textIndexes.isEmpty) {
+      throw ArgumentError(
+        'At least one vector field or text index is required.',
+      );
+    }
+    for (final key in [...scalarFields.keys, ...textIndexes.keys]) {
+      _validateFieldName(key);
+      if (dimensions != null && key == fieldName) {
+        throw ArgumentError('Scalar/text/vector field name collision: $key');
+      }
+      if (scalarFields.containsKey(key) && textIndexes.containsKey(key)) {
+        throw ArgumentError('Scalar/text field name collision: $key');
+      }
+    }
     Zvec.initialize();
     final pathPtr = path.toNativeUtf8();
     final namePtr = name.toNativeUtf8();
@@ -94,50 +118,53 @@ final class ZvecCollection {
       throw StateError('Zvec could not allocate a collection schema.');
     }
     try {
-      final field = native.zvec_field_schema_create(
-        fieldNamePtr.cast(),
-        23,
-        false,
-        dimensions,
-      );
-      if (field == ffi.nullptr) {
-        throw StateError('Zvec could not allocate a vector field.');
-      }
-      try {
-        final index = native.zvec_index_params_create(1); // HNSW
-        if (index == ffi.nullptr) {
-          throw StateError('Zvec could not allocate HNSW parameters.');
+      if (dimensions != null) {
+        final field = native.zvec_field_schema_create(
+          fieldNamePtr.cast(),
+          23,
+          false,
+          dimensions,
+        );
+        if (field == ffi.nullptr) {
+          throw StateError('Zvec could not allocate a vector field.');
         }
         try {
+          final index = native.zvec_index_params_create(1); // HNSW
+          if (index == ffi.nullptr) {
+            throw StateError('Zvec could not allocate HNSW parameters.');
+          }
+          try {
+            _check(
+              'set vector metric',
+              native.zvec_index_params_set_metric_type(
+                index,
+                metric._nativeValue,
+              ),
+            );
+            _check(
+              'set HNSW parameters',
+              native.zvec_index_params_set_hnsw_params(
+                index,
+                m,
+                efConstruction,
+              ),
+            );
+            _check(
+              'attach HNSW index',
+              native.zvec_field_schema_set_index_params(field, index),
+            );
+          } finally {
+            native.zvec_index_params_destroy(index);
+          }
           _check(
-            'set vector metric',
-            native.zvec_index_params_set_metric_type(
-              index,
-              metric._nativeValue,
-            ),
-          );
-          _check(
-            'set HNSW parameters',
-            native.zvec_index_params_set_hnsw_params(index, m, efConstruction),
-          );
-          _check(
-            'attach HNSW index',
-            native.zvec_field_schema_set_index_params(field, index),
+            'add vector field',
+            native.zvec_collection_schema_add_field(schema, field),
           );
         } finally {
-          native.zvec_index_params_destroy(index);
+          native.zvec_field_schema_destroy(field);
         }
-        _check(
-          'add vector field',
-          native.zvec_collection_schema_add_field(schema, field),
-        );
-      } finally {
-        native.zvec_field_schema_destroy(field);
       }
       for (final entry in scalarFields.entries) {
-        if (entry.key == fieldName) {
-          throw ArgumentError('Scalar/vector field name collision.');
-        }
         final scalar = _scalarSchema(entry.key, entry.value);
         try {
           _check(
@@ -146,6 +173,17 @@ final class ZvecCollection {
           );
         } finally {
           native.zvec_field_schema_destroy(scalar);
+        }
+      }
+      for (final entry in textIndexes.entries) {
+        final field = _textSchema(entry.key, entry.value);
+        try {
+          _check(
+            'add text field',
+            native.zvec_collection_schema_add_field(schema, field),
+          );
+        } finally {
+          native.zvec_field_schema_destroy(field);
         }
       }
       _check(
@@ -158,7 +196,11 @@ final class ZvecCollection {
         ),
       );
       return ZvecCollection._(out.value, dimensions, fieldName, metric)
-        .._fields = Map.of(scalarFields);
+        .._fields = {
+          ...scalarFields,
+          for (final name in textIndexes.keys) name: ZvecScalarType.string,
+        }
+        .._textIndexes = Map.of(textIndexes);
     } finally {
       native.zvec_collection_schema_destroy(schema);
       calloc.free(pathPtr);
@@ -168,19 +210,23 @@ final class ZvecCollection {
     }
   }
 
-  /// Open a collection previously created with the same vector field and dimension.
+  /// Open with the same vector configuration, or omit dimensions for text-only
+  /// collections. Text indexes are discovered from the native schema. If supplied,
+  /// [textIndexes] must exactly match the persisted text-index configuration.
   static ZvecCollection open(
     String path, {
-    required int dimensions,
+    int? dimensions,
     String fieldName = 'embedding',
     bool readOnly = false,
+    Map<String, ZvecTextIndex>? textIndexes,
     ZvecMetric metric = ZvecMetric.cosine,
   }) {
-    if (dimensions < 1 || fieldName.isEmpty) {
+    if ((dimensions != null && (dimensions < 1 || dimensions > 0xffffffff)) ||
+        fieldName.isEmpty) {
       throw ArgumentError('Invalid vector field or dimension.');
     }
     _validateText(path);
-    _validateText(fieldName);
+    _validateFieldName(fieldName);
     Zvec.initialize();
     final pathPtr = path.toNativeUtf8();
     final out = calloc<ffi.Pointer<native.zvec_collection_t>>();
@@ -209,6 +255,15 @@ final class ZvecCollection {
       );
       try {
         collection._loadSchema();
+        if (textIndexes != null &&
+            (textIndexes.length != collection._textIndexes.length ||
+                textIndexes.entries.any(
+                  (entry) =>
+                      collection._textIndexes[entry.key]?._signature !=
+                      entry.value._signature,
+                ))) {
+          throw ArgumentError('Persisted text indexes do not match.');
+        }
         return collection;
       } catch (_) {
         collection.close();
@@ -232,7 +287,17 @@ final class ZvecCollection {
     _requireOpen();
     if (input.isEmpty) return;
     for (final record in input) {
-      _validateVector(record.embedding);
+      final embedding = record.embedding;
+      if (embedding != null) {
+        _validateVector(embedding);
+      } else if (hasVectorField) {
+        throw ArgumentError('This collection requires an embedding.');
+      }
+      for (final entry in _textIndexes.entries) {
+        if (!entry.value.nullable && !record.fields.containsKey(entry.key)) {
+          throw ArgumentError('Required text field is missing: ${entry.key}');
+        }
+      }
       _validateText(record.id);
       if (record.id.isEmpty) {
         throw ArgumentError('Record IDs must not be empty.');
@@ -251,40 +316,21 @@ final class ZvecCollection {
     var created = 0;
     try {
       for (final record in input) {
-        _validateVector(record.embedding);
-        if (record.id.isEmpty) {
-          throw ArgumentError.value(record.id, 'id', 'Must not be empty.');
-        }
         final document = native.zvec_doc_create();
         if (document == ffi.nullptr) {
           throw StateError('Zvec could not allocate a document.');
         }
         documents[created++] = document;
         final id = record.id.toNativeUtf8();
-        final name = fieldName.toNativeUtf8();
-        final values = calloc<ffi.Float>(dimensions);
         try {
           native.zvec_doc_set_pk(document, id.cast());
-          for (var i = 0; i < dimensions; i++) {
-            values[i] = record.embedding[i];
-          }
-          _check(
-            'set embedding',
-            native.zvec_doc_add_field_by_value(
-              document,
-              name.cast(),
-              23, // VECTOR_FP32
-              values.cast(),
-              dimensions * ffi.sizeOf<ffi.Float>(),
-            ),
-          );
+          final embedding = record.embedding;
+          if (embedding != null) _addVector(document, fieldName, embedding);
           for (final entry in record.fields.entries) {
             _addScalar(document, entry.key, entry.value);
           }
         } finally {
           calloc.free(id);
-          calloc.free(name);
-          calloc.free(values);
         }
       }
       _check(
@@ -338,7 +384,8 @@ final class ZvecCollection {
       throw StateError('Zvec could not allocate a query.');
     }
     final name = fieldName.toNativeUtf8();
-    final values = calloc<ffi.Float>(dimensions);
+    final dimension = dimensions!;
+    final values = calloc<ffi.Float>(dimension);
     final results = calloc<ffi.Pointer<ffi.Pointer<native.zvec_doc_t>>>();
     final count = calloc<ffi.Size>();
     final params = native.zvec_query_params_hnsw_create(
@@ -364,7 +411,7 @@ final class ZvecCollection {
           native.zvec_vector_query_set_filter(query, filterPtr.cast()),
         );
       }
-      for (var i = 0; i < dimensions; i++) {
+      for (var i = 0; i < dimension; i++) {
         values[i] = embedding[i];
       }
       _check(
@@ -376,7 +423,7 @@ final class ZvecCollection {
         native.zvec_vector_query_set_query_vector(
           query,
           values.cast(),
-          dimensions * ffi.sizeOf<ffi.Float>(),
+          dimension * ffi.sizeOf<ffi.Float>(),
         ),
       );
       _check(
@@ -428,6 +475,9 @@ final class ZvecCollection {
   }
 
   void _validateVector(Float32List value) {
+    if (!hasVectorField) {
+      throw StateError('This collection has no vector field.');
+    }
     if (value.length != dimensions) {
       throw ArgumentError.value(
         value.length,
