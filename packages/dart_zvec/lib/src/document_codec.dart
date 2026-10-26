@@ -98,18 +98,58 @@ extension on ZvecCollection {
   }
 
   ZvecRecord _readRecord(ffi.Pointer<native.zvec_doc_t> document) {
-    final vector = _readField(document, fieldName, 23, (data, size) {
-      if (size != dimensions * ffi.sizeOf<ffi.Float>()) {
-        throw StateError('Stored vector size mismatch.');
-      }
-      return Float32List.fromList(
-        data.cast<ffi.Float>().asTypedList(dimensions),
-      );
-    });
+    final Float32List? vector;
+    final name = fieldName.toNativeUtf8();
+    final bool hasVector;
+    try {
+      hasVector =
+          hasVectorField &&
+          native.zvec_doc_has_field_value(document, name.cast());
+    } finally {
+      calloc.free(name);
+    }
+    if (!hasVector) {
+      vector = null;
+    } else {
+      final dimension = dimensions!;
+      vector = _readField(document, fieldName, 23, (data, size) {
+        if (size != dimension * ffi.sizeOf<ffi.Float>()) {
+          throw StateError('Stored vector size mismatch.');
+        }
+        return Float32List.fromList(
+          data.cast<ffi.Float>().asTypedList(dimension),
+        );
+      });
+    }
     return ZvecRecord(
       native.zvec_doc_get_pk_pointer(document).cast<Utf8>().toDartString(),
       vector,
       fields: _readFields(document),
     );
+  }
+}
+
+void _addVector(
+  ffi.Pointer<native.zvec_doc_t> document,
+  String fieldName,
+  Float32List embedding,
+) {
+  final name = fieldName.toNativeUtf8();
+  final values = calloc<ffi.Float>(embedding.length);
+  try {
+    values.asTypedList(embedding.length).setAll(0, embedding);
+    _check(
+      'set embedding',
+      native.zvec_doc_add_field_by_value(
+        document,
+        name.cast(),
+        23,
+        values.cast(),
+        embedding.length * ffi.sizeOf<ffi.Float>(),
+      ),
+    );
+  } finally {
+    calloc.free(name);
+    calloc.free(values);
   }
 }

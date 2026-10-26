@@ -1,6 +1,6 @@
 # dart-zvec
 
-Pure Dart bindings for the embedded [Zvec](https://github.com/alibaba/zvec) vector search engine. The repository is a Dart Pub workspace managed with Melos. It has no Flutter dependency.
+Pure Dart bindings for the embedded [Zvec](https://github.com/alibaba/zvec) vector and BM25 full-text search engine. The repository is a Dart Pub workspace managed with Melos. It has no Flutter dependency.
 
 The publishable package is [`packages/dart_zvec`](packages/dart_zvec). A runnable Dart CLI example is in [`example/dart_zvec_example`](example/dart_zvec_example).
 

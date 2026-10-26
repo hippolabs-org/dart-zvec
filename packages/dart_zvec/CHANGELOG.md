@@ -1,4 +1,20 @@
-## Unreleased
+## 0.2.0
+
+- Add BM25 full-text search with typed tokenizer/index settings, plain-text match
+  and advanced boolean/phrase queries, AND/OR operators and scalar filtering.
+- Add text-only collections and records without embeddings, alongside combined
+  collections containing both text and required vectors.
+- Load FTS schemas on reopen and optionally validate expected index settings.
+- Generate FTS bindings from the pinned v0.7.0 header with explicit native
+  ownership and error cleanup.
+- Cover ranking, scope filters, mutation/deletion, persistence, read-only access,
+  Unicode, English/German stemming and combined vector/text queries in native tests.
+- **Breaking:** `ZvecRecord.embedding` and `ZvecCollection.dimensions` are nullable
+  to represent text-only data. Vector callers must check/narrow nullable values.
+  Existing required-vector collections retain their storage format and behavior.
+- Nullable-vector schemas from other clients are rejected on open because native
+  exact search can return rows without embeddings. Use a text-only collection
+  for documents awaiting embeddings.
 
 - Add Euclidean and inner-product metrics, explicit scalar schemas, typed scalar
   values, upsert, fetch, deletion, flush and filtered/exact search.

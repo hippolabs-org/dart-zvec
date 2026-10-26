@@ -65,6 +65,22 @@ functions:
     - zvec_query_params_hnsw_destroy
     - zvec_vector_query_set_hnsw_params
     - zvec_index_params_set_invert_params
+    - zvec_index_params_get_type
+    - zvec_index_params_set_fts_params
+    - zvec_index_params_get_fts_params
+    - zvec_string_array_create
+    - zvec_string_array_add
+    - zvec_string_array_destroy
+    - zvec_collection_schema_get_vector_fields
+    - zvec_field_schema_is_nullable
+    - zvec_query_params_fts_create
+    - zvec_query_params_fts_destroy
+    - zvec_vector_query_set_fts_params
+    - zvec_fts_create
+    - zvec_fts_destroy
+    - zvec_fts_set_query_string
+    - zvec_fts_set_match_string
+    - zvec_vector_query_set_fts
 exclude-all-by-default: true
 sort: true
 comments: false

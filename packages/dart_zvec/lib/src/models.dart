@@ -52,7 +52,10 @@ final class ZvecNumber extends ZvecValue {
 final class ZvecRecord {
   const ZvecRecord(this.id, this.embedding, {this.fields = const {}});
   final String id;
-  final Float32List embedding;
+
+  /// A document without a vector, for text-only collections.
+  const ZvecRecord.text(this.id, {this.fields = const {}}) : embedding = null;
+  final Float32List? embedding;
   final Map<String, ZvecValue> fields;
 }
 

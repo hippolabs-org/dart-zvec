@@ -103,20 +103,52 @@ extension on ZvecCollection {
         'read collection schema',
         native.zvec_collection_get_schema(_requireOpen(), schema),
       );
-      final vector = native.zvec_collection_schema_get_field(
-        schema.value,
-        name.cast(),
-      );
-      if (vector == ffi.nullptr ||
-          native.zvec_field_schema_get_dimension(vector) != dimensions ||
-          native.zvec_field_schema_get_data_type(vector) != 23) {
-        throw ArgumentError('Persisted vector field/dimensions do not match.');
+      final vectors =
+          calloc<ffi.Pointer<ffi.Pointer<native.zvec_field_schema_t>>>();
+      final vectorCount = calloc<ffi.Size>();
+      try {
+        _check(
+          'read vector schema',
+          native.zvec_collection_schema_get_vector_fields(
+            schema.value,
+            vectors,
+            vectorCount,
+          ),
+        );
+        if (vectorCount.value != (hasVectorField ? 1 : 0)) {
+          throw ArgumentError('Persisted vector field count does not match.');
+        }
+      } finally {
+        if (vectors.value != ffi.nullptr) {
+          native.zvec_free(vectors.value.cast());
+        }
+        calloc.free(vectors);
+        calloc.free(vectorCount);
       }
-      final index = native.zvec_field_schema_get_index_params(vector);
-      if (index == ffi.nullptr ||
-          native.zvec_index_params_get_metric_type(index) !=
-              metric._nativeValue) {
-        throw ArgumentError('Persisted vector metric does not match.');
+      if (hasVectorField) {
+        final vector = native.zvec_collection_schema_get_field(
+          schema.value,
+          name.cast(),
+        );
+        if (vector == ffi.nullptr ||
+            native.zvec_field_schema_get_dimension(vector) != dimensions ||
+            native.zvec_field_schema_get_data_type(vector) != 23) {
+          throw ArgumentError(
+            'Persisted vector field/dimensions do not match.',
+          );
+        }
+        final index = native.zvec_field_schema_get_index_params(vector);
+        if (index == ffi.nullptr ||
+            native.zvec_index_params_get_type(index) != 1 ||
+            native.zvec_index_params_get_metric_type(index) !=
+                metric._nativeValue) {
+          throw ArgumentError('Persisted vector index/metric does not match.');
+        }
+        if (native.zvec_field_schema_is_nullable(vector)) {
+          throw UnsupportedError(
+            'Nullable vectors are not supported: native exact search can return rows without embeddings.',
+          );
+        }
       }
       _check(
         'read scalar schema',
@@ -137,6 +169,22 @@ extension on ZvecCollection {
                 native.zvec_field_schema_get_data_type(fields.value[i]),
           ),
       };
+      _textIndexes = {};
+      for (var i = 0; i < count.value; i++) {
+        final field = fields.value[i];
+        final index = native.zvec_field_schema_get_index_params(field);
+        if (index != ffi.nullptr &&
+            native.zvec_index_params_get_type(index) == 11) {
+          final fieldName = native
+              .zvec_field_schema_get_name(field)
+              .cast<Utf8>()
+              .toDartString();
+          _textIndexes[fieldName] = _readTextIndex(
+            index,
+            nullable: native.zvec_field_schema_is_nullable(field),
+          );
+        }
+      }
     } finally {
       if (fields.value != ffi.nullptr) native.zvec_free(fields.value.cast());
       if (schema.value != ffi.nullptr) {
@@ -177,9 +225,7 @@ ffi.Pointer<native.zvec_field_schema_t> _scalarSchema(
   String name,
   ZvecScalarType type,
 ) {
-  if (!RegExp(r'^[a-zA-Z_][a-zA-Z0-9_]*$').hasMatch(name)) {
-    throw ArgumentError('Invalid scalar field name.');
-  }
+  _validateFieldName(name);
   final namePtr = name.toNativeUtf8();
   final field = native.zvec_field_schema_create(
     namePtr.cast(),
@@ -211,5 +257,11 @@ ffi.Pointer<native.zvec_field_schema_t> _scalarSchema(
   } finally {
     if (index != ffi.nullptr) native.zvec_index_params_destroy(index);
     calloc.free(namePtr);
+  }
+}
+
+void _validateFieldName(String name) {
+  if (!RegExp(r'^[a-zA-Z_][a-zA-Z0-9_]*$').hasMatch(name)) {
+    throw ArgumentError('Invalid field name: $name');
   }
 }
