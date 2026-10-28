@@ -12,7 +12,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-15, windows-latest]
+        # Blacksmith runners for every native asset this package can test:
+        # Linux x64/arm64, macOS arm64 and Windows x64.
+        os:
+          - blacksmith-2vcpu-ubuntu-2404
+          - blacksmith-2vcpu-ubuntu-2404-arm
+          - blacksmith-6vcpu-macos-15
+          - blacksmith-2vcpu-windows-2025
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
@@ -21,6 +27,6 @@ jobs:
           sdk: stable
       - run: dart pub get
       - run: dart run melos run ci
-      - if: matrix.os == 'ubuntu-latest'
+      - if: matrix.os == 'blacksmith-2vcpu-ubuntu-2404'
         run: dart pub publish --dry-run
         working-directory: packages/dart_zvec
