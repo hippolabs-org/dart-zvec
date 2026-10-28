@@ -5,19 +5,23 @@ import 'package:code_assets/code_assets.dart';
 import 'package:crypto/crypto.dart';
 import 'package:hooks/hooks.dart';
 
-const _version = 'v0.7.0';
+const _version = 'v0.8.0';
 const _assetName = 'src/bindings.dart';
 
 // SHA-256 digests published with the upstream Zvec release assets.
 const _archives = <String, String>{
   'zvec-sdk-osx-arm64.tar.gz':
-      'ac909c57e084bb39f7f98ef89b28db322df88348254158eedefa9c00e2c34dfc',
+      '5f0828e5bf5b0dc11754cc039f43a9de161e2daea5d088e1d48f8effd278d1fc',
+  'zvec-sdk-osx-amd64.tar.gz':
+      'c758501846b17ad2696ea44bbd99859fe0b312ec837b1eeecff310cff75c7b83',
   'zvec-sdk-linux-amd64.tar.gz':
-      'db9472ef2146b8f435b45b47a644eb7a75eb84b9946334debfcfc21112cec7f9',
+      'bc7097a293ec1677ac84c46e76afef880359766cd1e1cdf2494ef669237b134a',
   'zvec-sdk-linux-arm64.tar.gz':
-      '9a2a2867fb6ddb53212029b7f50eac288ad86bebfccb6ea6d52b3f35c4e026a8',
+      '0055f8135d121d51365edd216429f281341fa47a36a96dec60ddac28b60d0c3b',
   'zvec-sdk-windows-amd64.zip':
-      '549f0893a376c8e5b4cf1e685ef55ca37f41a39f5e016632ac1f762ad703d551',
+      '7fc16b1bf575d3300f4ae4728f09a6a096b67025d508c350c16302c665ccbbe8',
+  'zvec-sdk-windows-arm64.zip':
+      '43d61816a37b71380e4552f45759e206b57e4b54993f7e8da57d65a466d031e5',
 };
 
 void main(List<String> args) async {
@@ -33,6 +37,10 @@ void main(List<String> args) async {
         'zvec-sdk-osx-arm64.tar.gz',
         'libzvec_c_api.dylib',
       ),
+      (OS.macOS, Architecture.x64) => (
+        'zvec-sdk-osx-amd64.tar.gz',
+        'libzvec_c_api.dylib',
+      ),
       (OS.linux, Architecture.x64) => (
         'zvec-sdk-linux-amd64.tar.gz',
         'libzvec_c_api.so',
@@ -43,6 +51,10 @@ void main(List<String> args) async {
       ),
       (OS.windows, Architecture.x64) => (
         'zvec-sdk-windows-amd64.zip',
+        'zvec_c_api.dll',
+      ),
+      (OS.windows, Architecture.arm64) => (
+        'zvec-sdk-windows-arm64.zip',
         'zvec_c_api.dll',
       ),
       _ => throw UnsupportedError(

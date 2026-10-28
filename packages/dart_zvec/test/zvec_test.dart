@@ -33,7 +33,7 @@ void main() {
     final directory = Directory.systemTemp.createTempSync('dart-zvec-test-');
     final path = '${directory.path}/vectors';
     try {
-      expect(Zvec.version, 'v0.7.0');
+      expect(Zvec.version, 'v0.8.0');
       final collection = ZvecCollection.create(path, dimensions: 4);
       collection.insert([
         ZvecRecord('port', Float32List.fromList([1, 0, 0, 0])),

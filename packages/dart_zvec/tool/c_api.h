@@ -715,20 +715,6 @@ zvec_config_data_set_optimize_thread_count(zvec_config_data_t *config,
 ZVEC_EXPORT uint32_t ZVEC_CALL
 zvec_config_data_get_optimize_thread_count(const zvec_config_data_t *config);
 
-/**
- * @brief Set jieba dict directory in configuration data
- * @param dir Dict directory; NULL or empty leaves the field empty
- */
-ZVEC_EXPORT zvec_error_code_t ZVEC_CALL zvec_config_data_set_jieba_dict_dir(
-    zvec_config_data_t *config, const char *dir);
-
-/**
- * @brief Get jieba dict directory from configuration data
- * @return Pointer owned by config (do not free); empty when unset
- */
-ZVEC_EXPORT const char *ZVEC_CALL
-zvec_config_data_get_jieba_dict_dir(const zvec_config_data_t *config);
-
 // =============================================================================
 // Initialization and Cleanup Interface
 // =============================================================================
@@ -754,26 +740,6 @@ ZVEC_EXPORT zvec_error_code_t ZVEC_CALL zvec_shutdown(void);
  */
 ZVEC_EXPORT bool ZVEC_CALL zvec_is_initialized(void);
 
-/**
- * @brief Set the process-wide default jieba dict directory.
- *
- * For language SDKs to call on module load. Thread-safe, decoupled from
- * zvec_initialize(); last writer wins. A subsequent zvec_initialize() with
- * non-empty config.jieba_dict_dir overrides this. JiebaTokenizer priority:
- * per-field > ZVEC_JIEBA_DICT_DIR > this.
- *
- * @param dir UTF-8 directory containing jieba.dict.utf8 + hmm_model.utf8;
- *            NULL or empty clears the value.
- */
-ZVEC_EXPORT void ZVEC_CALL zvec_set_default_jieba_dict_dir(const char *dir);
-
-/**
- * @brief Get the process-wide default jieba dict directory.
- * @return Thread-local string valid until the next call on this thread;
- *         empty when unset.
- */
-ZVEC_EXPORT const char *ZVEC_CALL zvec_get_default_jieba_dict_dir(void);
-
 // =============================================================================
 // I/O Backend Introspection
 // =============================================================================
@@ -789,17 +755,21 @@ typedef uint32_t zvec_io_backend_type_t;
 #define ZVEC_IO_BACKEND_TYPE_LIBAIO \
   1 /**< libaio loaded at runtime via dlopen() */
 #define ZVEC_IO_BACKEND_TYPE_IO_URING \
-  2 /**< io_uring via raw kernel syscalls (zero dependency) */
+  2 /**< io_uring via raw Linux kernel syscalls (zero dependency) */
+#define ZVEC_IO_BACKEND_TYPE_WINDOWS_OVERLAPPED \
+  3 /**< Windows overlapped I/O using per-context IOCP */
 
 /**
  * @brief Get the current I/O backend type for DiskAnn disk reads.
  *
  * Linux selects the first usable backend in this order: io_uring, libaio,
- * then synchronous pread. macOS ARM64 uses synchronous pread.
+ * then synchronous pread. macOS ARM64 uses synchronous pread. Windows uses
+ * unbuffered overlapped I/O with a per-context completion port.
  *
  * @return zvec_io_backend_type_t The loaded backend type
- *         (ZVEC_IO_BACKEND_TYPE_IO_URING, ZVEC_IO_BACKEND_TYPE_LIBAIO,
- *         or ZVEC_IO_BACKEND_TYPE_PREAD).
+ *         ZVEC_IO_BACKEND_TYPE_IO_URING, ZVEC_IO_BACKEND_TYPE_LIBAIO,
+ *         ZVEC_IO_BACKEND_TYPE_PREAD, or
+ *         ZVEC_IO_BACKEND_TYPE_WINDOWS_OVERLAPPED.
  */
 ZVEC_EXPORT zvec_io_backend_type_t ZVEC_CALL zvec_get_io_backend_type(void);
 
@@ -808,7 +778,8 @@ ZVEC_EXPORT zvec_io_backend_type_t ZVEC_CALL zvec_get_io_backend_type(void);
  *
  * @param type The backend type code.
  * @return Thread-local string valid until the next call on this thread;
- *         "io_uring", "libaio", "pread", or "unknown".
+ *         "io_uring", "libaio", "pread", "windows_overlapped", or
+ *         "unknown".
  */
 ZVEC_EXPORT const char *ZVEC_CALL
 zvec_get_io_backend_type_name(zvec_io_backend_type_t type);
@@ -818,7 +789,8 @@ zvec_get_io_backend_type_name(zvec_io_backend_type_t type);
  *
  * The description identifies io_uring, libaio, or pread. On Linux, the pread
  * description also explains that io_uring and libaio were unavailable and
- * provides guidance for enabling an asynchronous backend.
+ * provides guidance for enabling an asynchronous backend. Windows reports its
+ * overlapped-I/O backend.
  *
  * @return Thread-local string valid until the next call on this thread.
  */
@@ -853,6 +825,7 @@ typedef uint32_t zvec_data_type_t;
 #define ZVEC_DATA_TYPE_VECTOR_INT4 25
 #define ZVEC_DATA_TYPE_VECTOR_INT8 26
 #define ZVEC_DATA_TYPE_VECTOR_INT16 27
+#define ZVEC_DATA_TYPE_VECTOR_UINT8 28
 #define ZVEC_DATA_TYPE_SPARSE_VECTOR_FP16 30
 #define ZVEC_DATA_TYPE_SPARSE_VECTOR_FP32 31
 #define ZVEC_DATA_TYPE_ARRAY_BINARY 40
@@ -1237,9 +1210,11 @@ ZVEC_EXPORT zvec_error_code_t ZVEC_CALL zvec_index_params_set_invert_params(
  *       "punctuation", "symbol"; default [] keeps all valid UTF-8
  *       characters). custom_token_chars is not supported.
  *   jieba:
- *     - "jieba_dict_dir" (directory containing jieba.dict.utf8 and
- *       hmm_model.utf8).
- *     - "user_dict_path" (user dictionary path).
+ *     - "jieba_dict_dir" (optional external directory containing
+ *       jieba.dict.utf8 and hmm_model.utf8; priority: field value >
+ *       ZVEC_JIEBA_DICT_DIR > embedded defaults).
+ *     - "user_dict_path" (user dictionary path; augments the selected
+ *       dictionary, including the embedded default).
  *     - "cut_mode" ("search", "mix", "full", or "hmm"; default "search").
  *   whitespace:
  *     - no extra_params.

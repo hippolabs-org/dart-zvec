@@ -1,5 +1,5 @@
 name: ZvecBindings
-description: Native bindings for the pinned Zvec v0.7.0 C API.
+description: Native bindings for the pinned Zvec v0.8.0 C API.
 output: ../lib/src/bindings.dart
 headers:
   entry-points:
