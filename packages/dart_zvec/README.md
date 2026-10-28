@@ -1,6 +1,6 @@
 # dart_zvec
 
-A pure Dart package for persistent [Zvec](https://github.com/alibaba/zvec) HNSW vector and BM25 full-text collections. It uses the Zvec v0.7.0 C API through generated `dart:ffi` bindings and a Dart native asset build hook. Flutter is not required.
+A pure Dart package for persistent [Zvec](https://github.com/alibaba/zvec) HNSW vector and BM25 full-text collections. It uses the Zvec v0.8.0 C API through generated `dart:ffi` bindings and a Dart native asset build hook. Flutter is not required.
 
 ```dart
 import 'dart:typed_data';
@@ -32,7 +32,7 @@ void main() {
 }
 ```
 
-The package supports macOS arm64, Linux x64/arm64, and Windows x64. The first native build downloads the corresponding upstream release archive from GitHub and verifies its pinned SHA-256 digest. The library is bundled into the compiled Dart application by native assets. The host needs network access for its first build.
+The package supports macOS arm64/x64, Linux x64/arm64, and Windows x64/arm64. The first native build downloads the corresponding upstream release archive from GitHub and verifies its pinned SHA-256 digest. The library is bundled into the compiled Dart application by native assets. The host needs network access for its first build.
 
 This package stores vectors, searchable text and flat scalar metadata; it does
 not create embeddings. Keep authoritative documents and authorization policy in the consumer.
@@ -173,4 +173,4 @@ dart run ffigen --config tool/ffigen.yaml
 
 Do not edit generated `lib/src/bindings.dart` directly.
 
-The included C header is from Zvec v0.7.0 and is licensed under Apache-2.0. See `THIRD_PARTY_NOTICES.md`.
+The included C header is from Zvec v0.8.0 and is licensed under Apache-2.0. See `THIRD_PARTY_NOTICES.md`.

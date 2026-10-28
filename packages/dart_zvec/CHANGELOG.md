@@ -1,3 +1,14 @@
+## 0.3.0
+
+- Bind Zvec v0.8.0. The bound C API is unchanged; the header drops only the
+  unused global Jieba dictionary accessors, and `ZvecJiebaTokenizer` keeps
+  configuring dictionaries per field.
+- Add macOS x64 and Windows arm64 native assets.
+- Zvec v0.8.0 fixes FTS persistence and recovery, crashes and missing rows when
+  reads race with a segment switch or flush, and filtered retrieval. It also
+  speeds up quantized and HNSW search. Rebuild persisted collections where
+  results must match a fresh build.
+
 ## 0.2.0
 
 - Add BM25 full-text search with typed tokenizer/index settings, plain-text match
