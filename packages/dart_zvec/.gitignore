@@ -1,0 +1,3 @@
+# Prebuilt registry libraries are produced by CI (tool/build_registry.dart) and
+# only belong in published archives; see .pubignore.
+/native/prebuilt/

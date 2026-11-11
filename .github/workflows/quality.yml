@@ -25,6 +25,14 @@ jobs:
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: stable
+      - name: Select the MSVC toolchain
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+      # Same command the publish workflow uses, so toolchain problems show up here.
+      - name: Build and verify the native registry
+        shell: bash
+        working-directory: packages/dart_zvec
+        run: dart tool/build_registry.dart --verify --out "$RUNNER_TEMP/registry"
       - run: dart pub get
       - run: dart run melos run ci
       - if: matrix.os == 'blacksmith-2vcpu-ubuntu-2404'

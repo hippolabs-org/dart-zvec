@@ -1,0 +1,2 @@
+# A .pubignore replaces .gitignore for this directory when publishing, so the
+# git-ignored native/prebuilt libraries are included in the archive.

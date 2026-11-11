@@ -34,6 +34,8 @@ void main() {
 
 The package supports macOS arm64/x64, Linux x64/arm64, and Windows x64/arm64. The first native build downloads the corresponding upstream release archive from GitHub and verifies its pinned SHA-256 digest. The library is bundled into the compiled Dart application by native assets. The host needs network access for its first build.
 
+No C++ compiler is needed on those targets. The small native registry that tracks open collections ships prebuilt in the published package (`native/prebuilt/<os>_<arch>/`: static libstdc++ on Linux, macOS 13+, static CRT on Windows, so it needs only the system C library) and the build hook bundles it as is. Only targets without a prebuilt binary, such as iOS and Android, or a git checkout, compile `native/collection_registry.cpp` and then require a C++ compiler for the target; the hook reports this when none is available.
+
 This package stores vectors, searchable text and flat scalar metadata; it does
 not create embeddings. Keep authoritative documents and authorization policy in the consumer.
 
@@ -164,6 +166,9 @@ and metric; omit dimensions only for text-only collections.
 From the workspace root, run `dart run melos run ci`. Native tests cover all
 metrics, scalar round trips, BM25 ranking, scope filters, phrase queries,
 Unicode/stemming, replacement, deletion, reopen and read-only collections.
+`dart tool/build_registry.dart --verify` builds the registry for the host into
+`native/prebuilt/` (git-ignored, but included by `dart pub publish`) with the same
+command CI uses; delete that directory to make the hook compile the source again.
 Regenerate bindings from the pinned header after editing `tool/ffigen.yaml`:
 
 ```sh

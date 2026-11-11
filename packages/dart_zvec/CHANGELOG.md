@@ -1,3 +1,8 @@
+## 0.3.2
+
+- Ship the native collection registry prebuilt for macOS arm64/x64, Linux x64/arm64 and Windows x64/arm64 inside the package, so builds on those targets, such as Docker images without a toolchain, no longer need a C++ compiler or network access for it. Targets without a prebuilt binary and git checkouts still compile `native/collection_registry.cpp`, with an error that names the missing compiler and binary.
+- Add `tool/build_registry.dart`, the single build and verification command used by CI and local development.
+
 ## 0.3.1
 
 - Track native collections process-wide and expose coordinated cleanup after owning workers stop.

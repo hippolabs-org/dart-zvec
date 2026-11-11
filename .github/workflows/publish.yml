@@ -17,7 +17,52 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # One job per native target. Each builds the collection registry with the
+  # platform compiler through tool/build_registry.dart and verifies it (glibc
+  # ceiling, no dynamic C++/CRT dependency, exports, loads where it can run).
+  build-native:
+    name: Registry ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          # Ubuntu 22.04 keeps the glibc baseline at 2.35; the script also
+          # fails the build if a newer symbol version is required.
+          - {name: linux_x64, runner: blacksmith-2vcpu-ubuntu-2204, os: linux, arches: x64}
+          - {name: linux_arm64, runner: blacksmith-2vcpu-ubuntu-2204-arm, os: linux, arches: arm64}
+          # One Apple Silicon runner builds both; the x64 slice is cross built.
+          - {name: macos, runner: blacksmith-6vcpu-macos-15, os: macos, arches: 'arm64 x64'}
+          - {name: windows_x64, runner: blacksmith-2vcpu-windows-2025, os: windows, arches: x64, msvc: x64}
+          # Cross built on the x64 runner (not loaded, only inspected).
+          - {name: windows_arm64, runner: blacksmith-2vcpu-windows-2025, os: windows, arches: arm64, msvc: amd64_arm64}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - name: Select the MSVC toolchain
+        if: matrix.os == 'windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.msvc }}
+      - name: Build and verify
+        shell: bash
+        working-directory: packages/dart_zvec
+        run: |
+          set -euo pipefail
+          for arch in ${{ matrix.arches }}; do
+            dart tool/build_registry.dart --os "${{ matrix.os }}" --arch "$arch" --verify
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: registry-${{ matrix.name }}
+          path: packages/dart_zvec/native/prebuilt
+          if-no-files-found: error
+          retention-days: 7
+
   publish:
+    needs: build-native
     runs-on: blacksmith-2vcpu-ubuntu-2404
     environment: dart-packages
     env:
@@ -30,11 +75,39 @@ jobs:
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: stable
+      - name: Assemble prebuilt registries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: registry-*
+          merge-multiple: true
+          path: packages/dart_zvec/native/prebuilt
+      - name: Check every target is present
+        shell: bash
+        working-directory: packages/dart_zvec/native/prebuilt
+        run: |
+          set -euo pipefail
+          for f in \
+            linux_x64/libdart_zvec_collection_registry.so \
+            linux_arm64/libdart_zvec_collection_registry.so \
+            macos_arm64/libdart_zvec_collection_registry.dylib \
+            macos_x64/libdart_zvec_collection_registry.dylib \
+            windows_x64/dart_zvec_collection_registry.dll \
+            windows_arm64/dart_zvec_collection_registry.dll; do
+            test -s "$f" || { echo "Missing prebuilt registry: $f" >&2; exit 1; }
+          done
+          find . -type f | sort
       - run: dart pub get
       - run: dart run melos run ci
       - name: Validate package archive
-        run: dart pub publish --dry-run
+        shell: bash
         working-directory: packages/dart_zvec
+        run: |
+          set -euo pipefail
+          dart pub publish --dry-run 2>&1 | tee "$RUNNER_TEMP/dry-run.txt"
+          # The archive must carry the binaries, or consumers need a compiler.
+          for name in libdart_zvec_collection_registry.so libdart_zvec_collection_registry.dylib dart_zvec_collection_registry.dll; do
+            grep -q "$name" "$RUNNER_TEMP/dry-run.txt" || { echo "$name missing from the archive" >&2; exit 1; }
+          done
       - name: Configure registry token
         if: ${{ !inputs.dry_run }}
         shell: bash
