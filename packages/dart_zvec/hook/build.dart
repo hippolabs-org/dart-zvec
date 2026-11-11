@@ -4,6 +4,7 @@ import 'package:archive/archive.dart';
 import 'package:code_assets/code_assets.dart';
 import 'package:crypto/crypto.dart';
 import 'package:hooks/hooks.dart';
+import 'package:native_toolchain_c/native_toolchain_c.dart';
 
 const _version = 'v0.8.0';
 const _assetName = 'src/bindings.dart';
@@ -96,6 +97,13 @@ void main(List<String> args) async {
     final library = File.fromUri(input.outputDirectory.resolve(libraryName));
     library.parent.createSync(recursive: true);
     library.writeAsBytesSync(entry.single.content, flush: true);
+    await CBuilder.library(
+      name: 'dart_zvec_collection_registry',
+      assetName: 'src/collection_registry.dart',
+      language: Language.cpp,
+      std: 'c++17',
+      sources: ['native/collection_registry.cpp'],
+    ).run(input: input, output: output);
     output.assets.code.add(
       CodeAsset(
         package: input.packageName,

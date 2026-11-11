@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 
 import 'bindings.dart' as native;
+import 'collection_registry.dart' as registry;
 
 part 'models.dart';
 part 'text_models.dart';
@@ -41,6 +42,12 @@ abstract final class Zvec {
     }
   }
 
+  /// Closes process-owned collections after all users have stopped accessing them.
+  ///
+  /// Call only after every live worker using Zvec has stopped. Existing Dart
+  /// collection objects become invalid and must not be used again.
+  static void closeAll() => registry.closeAllTrackedCollections();
+
   /// Call after closing every collection.
   static void shutdown() {
     if (!native.zvec_is_initialized()) return;
@@ -52,7 +59,10 @@ abstract final class Zvec {
 ///
 /// The collection directory is owned by Zvec. Call [close] when finished.
 final class ZvecCollection {
-  ZvecCollection._(this._handle, this.dimensions, this.fieldName, this.metric);
+  ZvecCollection._(this._handle, this.dimensions, this.fieldName, this.metric)
+    : _registryId = registry.trackCollection(_handle!.cast());
+
+  final int _registryId;
 
   ffi.Pointer<native.zvec_collection_t>? _handle;
 
@@ -465,12 +475,14 @@ final class ZvecCollection {
     final handle = _handle;
     if (handle == null) return;
     _handle = null;
-    _check('close collection', native.zvec_collection_close(handle));
+    registry.closeTrackedCollection(_registryId);
   }
 
   ffi.Pointer<native.zvec_collection_t> _requireOpen() {
     final handle = _handle;
-    if (handle == null) throw StateError('Zvec collection is closed.');
+    if (handle == null || !registry.isTrackedCollection(_registryId)) {
+      throw StateError('Zvec collection is closed.');
+    }
     return handle;
   }
 

@@ -1,3 +1,7 @@
+## 0.3.1
+
+- Track native collections process-wide and expose coordinated cleanup after owning workers stop.
+
 ## 0.3.0
 
 - Bind Zvec v0.8.0. The bound C API is unchanged; the header drops only the

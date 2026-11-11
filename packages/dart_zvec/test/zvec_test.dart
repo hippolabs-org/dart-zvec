@@ -5,6 +5,29 @@ import 'package:dart_zvec/dart_zvec.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('process cleanup closes collections and invalidates old objects', () {
+    final directory = Directory.systemTemp.createTempSync(
+      'dart-zvec-recovery-',
+    );
+    final path = '${directory.path}/vectors';
+    try {
+      final old = ZvecCollection.create(path, dimensions: 2);
+      old.insert([
+        ZvecRecord('saved', Float32List.fromList([1, 0])),
+      ]);
+      old.flush();
+      Zvec.closeAll();
+      expect(() => old.search(Float32List.fromList([1, 0])), throwsStateError);
+      old.close();
+      final reopened = ZvecCollection.open(path, dimensions: 2);
+      expect(reopened.search(Float32List.fromList([1, 0])).first.id, 'saved');
+      reopened.close();
+      Zvec.closeAll();
+    } finally {
+      Zvec.shutdown();
+      directory.deleteSync(recursive: true);
+    }
+  });
   test('two read-only handles share a persisted collection', () {
     final directory = Directory.systemTemp.createTempSync('dart-zvec-readers-');
     final path = '${directory.path}/vectors';

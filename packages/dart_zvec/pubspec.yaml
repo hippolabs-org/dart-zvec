@@ -1,6 +1,6 @@
 name: dart_zvec
 description: Pure Dart native bindings for persistent Zvec vector and BM25 full-text search.
-version: 0.3.0
+version: 0.3.1
 publish_to: https://pub.hippolabs.org
 repository: https://github.com/hippolabs-org/dart-zvec/tree/main/packages/dart_zvec
 
@@ -15,6 +15,7 @@ dependencies:
   crypto: ^3.0.6
   ffi: ^2.2.0
   hooks: ^2.0.2
+  native_toolchain_c: ^0.19.5
 
 dev_dependencies:
   ffigen: ^20.1.1
