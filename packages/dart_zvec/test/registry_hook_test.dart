@@ -4,7 +4,7 @@ import 'package:code_assets/code_assets.dart';
 import 'package:hooks/hooks.dart';
 import 'package:test/test.dart';
 
-import '../hook/src/collection_registry.dart';
+import '../hook/build.dart';
 
 // Runs addCollectionRegistry through the hook protocol with no C compiler
 // configured, the situation of a Docker image without a toolchain.
