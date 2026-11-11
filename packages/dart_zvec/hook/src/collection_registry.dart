@@ -23,11 +23,13 @@ String prebuiltRegistryPath(OS os, Architecture architecture) {
 /// one for the target, so no C++ compiler is needed. Other targets, and
 /// checkouts without prebuilt binaries, compile `native/collection_registry.cpp`.
 ///
-/// [prebuiltRoot] overrides the directory that contains `native/prebuilt`.
+/// [prebuiltRoot] overrides the directory that contains `native/prebuilt`, and
+/// [compileFromSource] replaces the compiler run; both exist for tests.
 Future<void> addCollectionRegistry(
   BuildInput input,
   BuildOutputBuilder output, {
   Uri? prebuiltRoot,
+  Future<void> Function(BuildInput, BuildOutputBuilder)? compileFromSource,
 }) async {
   final target = input.config.code;
   final relativePath = prebuiltRegistryPath(
@@ -56,13 +58,7 @@ Future<void> addCollectionRegistry(
   }
 
   try {
-    await CBuilder.library(
-      name: registryLibraryName,
-      assetName: registryAssetName,
-      language: Language.cpp,
-      std: 'c++17',
-      sources: ['native/collection_registry.cpp'],
-    ).run(input: input, output: output);
+    await (compileFromSource ?? _compile)(input, output);
   } catch (error) {
     throw StateError(
       'dart_zvec has no prebuilt collection registry for '
@@ -73,3 +69,12 @@ Future<void> addCollectionRegistry(
     );
   }
 }
+
+Future<void> _compile(BuildInput input, BuildOutputBuilder output) =>
+    CBuilder.library(
+      name: registryLibraryName,
+      assetName: registryAssetName,
+      language: Language.cpp,
+      std: 'c++17',
+      sources: ['native/collection_registry.cpp'],
+    ).run(input: input, output: output);

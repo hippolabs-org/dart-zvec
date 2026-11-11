@@ -13,13 +13,18 @@ Future<void> _run({
   required OS os,
   required Architecture architecture,
   required void Function(BuildInput, BuildOutput) check,
+  Future<void> Function(BuildInput, BuildOutputBuilder)? compileFromSource,
 }) => testCodeBuildHook(
   targetOS: os,
   targetArchitecture: architecture,
   mainMethod: (args) => build(
     args,
-    (input, output) =>
-        addCollectionRegistry(input, output, prebuiltRoot: prebuiltRoot),
+    (input, output) => addCollectionRegistry(
+      input,
+      output,
+      prebuiltRoot: prebuiltRoot,
+      compileFromSource: compileFromSource,
+    ),
   ),
   check: check,
 );
@@ -63,13 +68,19 @@ void main() {
     });
   }
 
+  // The compiler is injected so these tests do not depend on what the host
+  // machine has installed.
+  Future<void> failingCompiler(BuildInput _, BuildOutputBuilder _) =>
+      Future.error(Exception('No compiler configured'));
+
   test('falls back to compiling, and says so, when there is no prebuilt '
-      'library and no compiler', () async {
+      'library and the compiler fails', () async {
     await expectLater(
       _run(
         prebuiltRoot: root.uri,
         os: OS.linux,
         architecture: Architecture.x64,
+        compileFromSource: failingCompiler,
         check: (_, _) {},
       ),
       throwsA(
@@ -77,27 +88,54 @@ void main() {
           (e) => e.message,
           'message',
           allOf(
-            contains('no prebuilt collection registry'),
+            contains('no prebuilt'),
             contains('C++ compiler'),
+            contains('No compiler configured'),
           ),
         ),
       ),
     );
   });
 
-  test('ignores an empty prebuilt file', () async {
+  test('compiles the source when there is no prebuilt library', () async {
+    var compiled = 0;
+    await _run(
+      prebuiltRoot: root.uri,
+      os: OS.linux,
+      architecture: Architecture.x64,
+      compileFromSource: (_, _) async => compiled++,
+      check: (_, output) => expect(output.assets.code, isEmpty),
+    );
+    expect(compiled, 1);
+  });
+
+  test('ignores an empty prebuilt file and compiles instead', () async {
     final target = prebuiltRegistryPath(OS.linux, Architecture.x64);
     File('${root.path}/$target')
       ..createSync(recursive: true)
       ..writeAsBytesSync([]);
-    await expectLater(
-      _run(
-        prebuiltRoot: root.uri,
-        os: OS.linux,
-        architecture: Architecture.x64,
-        check: (_, _) {},
-      ),
-      throwsStateError,
+    var compiled = 0;
+    await _run(
+      prebuiltRoot: root.uri,
+      os: OS.linux,
+      architecture: Architecture.x64,
+      compileFromSource: (_, _) async => compiled++,
+      check: (_, output) => expect(output.assets.code, isEmpty),
+    );
+    expect(compiled, 1);
+  });
+
+  test('does not compile when a prebuilt library exists', () async {
+    final target = prebuiltRegistryPath(OS.linux, Architecture.x64);
+    File('${root.path}/$target')
+      ..createSync(recursive: true)
+      ..writeAsBytesSync([1]);
+    await _run(
+      prebuiltRoot: root.uri,
+      os: OS.linux,
+      architecture: Architecture.x64,
+      compileFromSource: failingCompiler,
+      check: (_, output) => expect(output.assets.code, hasLength(1)),
     );
   });
 }
